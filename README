@@ -1,3 +1,14 @@
 README - Tetris
 
 Simple Tetris game
+
+Will represent the current piece as a list of game.points, will also represent the top line of pieces this way.
+When a current piece collides with the bottom, it will enter a list of pieces that make up the dropped pieces and will
+stop being current piece.
+Could maybe use grid for placed pieces.
+
+tile = one segement of a piece
+
+example initialization:
+ghc Pong.hs -main-is Pong
+./Pong
