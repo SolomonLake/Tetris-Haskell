@@ -20,14 +20,17 @@ import System.IO.Unsafe
 
 -- GAME DATA
 
-stageWidth, stageHeight :: Int
+totalStageWidth, stageWidth, stageHeight :: Int
 stageWidth = 300
 stageHeight = 540
 -- TODO make these scalable from tileS, then incorporate this into initial piece pos
 
+totalStageWidth = stageHeight + 50
+
 stageWidthF, stageHeightF :: Float
 stageWidthF = fromIntegral stageWidth
 stageHeightF = fromIntegral stageHeight
+--totalStageWidthF = fromIntegral totalStageWidth
 
 tileS :: Float
 tileS = 30
@@ -46,14 +49,21 @@ data Piece = Piece { p_color :: Color
                    , p_center :: Point}
 
 initialPiece :: Piece
-initialPiece = o_Shape--pick shapeList
+initialPiece = pick shapeList
 
 pick :: [a] -> a
 pick [] = error "no items to pick"
-pick as = pickHelp as (unsafePerformIO (getStdRandom (randomR (1, length as))))
+pick as = pickHelp as (getRandNumLess (length as))
+
+getRandNumLess :: Int -> Int
+getRandNumLess i 
+    | randN < i = randN
+    | otherwise = getRandNumLess i
+    where
+        randN = unsafePerformIO (getStdRandom (randomR (0, i)))
 
 pickHelp :: [a] -> Int -> a
-pickHelp [] _ = error "picking num out of list range"
+pickHelp [] _ = error "picking num out of list range" --this sometimes happens..random..
 pickHelp as 0 = head (as)
 pickHelp as i = pickHelp (tail as) (i-1)
 
@@ -95,17 +105,21 @@ rightWall :: Path
 rightWall = [(stageWidthF,0),(stageWidthF,stageHeightF)]
 
 
+
 -- GAME FUNCTIONS
 
-bottomOut :: Piece -> [Float] -> Bool
-bottomOut p ls = bottomOutRec (nextPosStep p) ls
 
-bottomOutRec :: [Point] -> [Float] -> Bool
-bottomOutRec _ [] = False
-bottomOutRec ps@([(t0X,t0Y),(t1X,t1Y),(t2X,t2Y),(t3X,t3Y)] ) ls
-    | (t0Y < head ls || t1Y < head ls || t2Y < head ls || t3Y < head ls) 
-                = True
-    | otherwise = bottomOutRec ps (tail ls)
+-- PIECE OVERLAP FUNCS
+
+--bottomOut :: Piece -> [Float] -> Bool
+--bottomOut p ls = bottomOutRec (nextPosStep p) ls
+
+--bottomOutRec :: [Point] -> [Float] -> Bool
+--bottomOutRec _ [] = False
+--bottomOutRec ps@([(t0X,t0Y),(t1X,t1Y),(t2X,t2Y),(t3X,t3Y)] ) ls
+--    | (t0Y < head ls || t1Y < head ls || t2Y < head ls || t3Y < head ls) 
+--                = True
+--    | otherwise = bottomOutRec ps (tail ls)
 
 nextPosStep :: Piece -> [Point]
 nextPosStep Piece { p_position = [(t0X,t0Y),(t1X,t1Y),(t2X,t2Y),(t3X,t3Y)] }
@@ -118,9 +132,8 @@ pathsOverlap [a1,a2] [b1,b2]
         Nothing -> False
         Just (p) -> True
 
-notOverlap :: [Point] -> Bool
-notOverlap pos = notOverlapWalls pos && notOverlapFloor pos
--- need to also not overlap with placed pieces :)
+notOverlap :: [Piece] -> [Point] -> Bool
+notOverlap ps pos = notOverlapWalls pos && notOverlapFloor pos && notOverlapPlacedPs ps pos
 
 notOverlapFloor :: [Point] -> Bool
 notOverlapFloor [(t0X,t0Y),(t1X,t1Y),(t2X,t2Y),(t3X,t3Y)]
@@ -138,19 +151,37 @@ notOverlapWalls [(t0X,t0Y),(t1X,t1Y),(t2X,t2Y),(t3X,t3Y)]
     | otherwise = True
 notOverlapWalls _ = error "not a piece position"
 
+notOverlapPlacedPs :: [Piece] -> [Point] -> Bool
+notOverlapPlacedPs [] _ = True
+notOverlapPlacedPs ps pos 
+    | notOverlapPiece (head ps) pos = notOverlapPlacedPs (tail ps) pos
+    | otherwise = False
 
-rotatePiece :: Piece -> Piece
-rotatePiece p@(Piece { p_color = col
+notOverlapPiece :: Piece -> [Point] -> Bool
+notOverlapPiece Piece{ p_position = [pt0,pt1,pt2,pt3] } [t0,t1,t2,t3]
+    | t0 == pt0 || t0 == pt1 || t0 == pt2 || t0 == pt3 ||
+      t1 == pt0 || t1 == pt1 || t1 == pt2 || t1 == pt3 ||
+      t2 == pt0 || t2 == pt1 || t2 == pt2 || t2 == pt3 ||
+      t3 == pt0 || t3 == pt1 || t3 == pt2 || t3 == pt3
+                = False
+    | otherwise = True
+
+
+
+-- PIECE ROTATE AND TRANSLATE FUNCS
+
+rotatePiece :: [Piece] -> Piece -> Piece
+rotatePiece ps p@(Piece { p_color = col
                    , p_position = [(t0X,t0Y),(t1X,t1Y),(t2X,t2Y),(t3X,t3Y)]
                    , p_center = (p_cenX, p_cenY)} )
-    | (p_cenX == t0X && p_cenY == t0Y) = rotateNormal p
-    | otherwise                        = rotateSpecial p
+    | (p_cenX == t0X && p_cenY == t0Y) = rotateNormal ps p
+    | otherwise                        = rotateSpecial ps p
 
-rotateNormal :: Piece -> Piece
-rotateNormal p@(Piece { p_color = col
+rotateNormal :: [Piece] -> Piece -> Piece
+rotateNormal ps p@(Piece { p_color = col
                    , p_position = [t0,t1,t2,t3]
                    , p_center = (p_cenX, p_cenY)} )
-    | notOverlap nPos = Piece { p_color = col
+    | notOverlap ps nPos = Piece { p_color = col
                                  , p_position = nPos
                                  , p_center = (p_cenX, p_cenY)}
     | otherwise = p
@@ -176,12 +207,12 @@ rotateT (x,y) (cen_x, cen_y) | (x == cen_x && y > cen_y) -- x+, y-
                                     = (x - (abs(cen_x-x)+ abs(cen_y-y)), y)
                              | otherwise = error "weird shape"
 
-rotateSpecial :: Piece -> Piece
-rotateSpecial p@(Piece { p_color = col
+rotateSpecial :: [Piece] -> Piece -> Piece
+rotateSpecial ps p@(Piece { p_color = col
                               , p_position = [(t0X,t0Y),t1,t2,t3]
                               , p_center = pc@(p_cenX, p_cenY)} )
     | (abs (p_cenX - t0X) > tileS) || (abs (p_cenY - t0Y) > tileS)
-        = case notOverlap nPos of
+        = case notOverlap ps nPos of
             False -> p
             True -> Piece { p_color = col
                                  , p_position = nPos
@@ -234,11 +265,11 @@ rotateFarST (x,y) (cen_x, cen_y)
 
 
 
-translatePiece :: Point -> Piece -> Piece
-translatePiece (x,y) p@(Piece { p_color = col
+translatePiece :: [Piece] -> Point -> Piece -> Piece
+translatePiece ps (x,y) p@(Piece { p_color = col
                               , p_position = [(t0X,t0Y),(t1X,t1Y),(t2X,t2Y),(t3X,t3Y)]
                               , p_center = (p_cenX, p_cenY)} )
-    | notOverlap nPos = Piece { p_color = col
+    | notOverlap ps nPos = Piece { p_color = col
                                 , p_position = nPos
                                 , p_center = (p_cenX+(x*tileS), p_cenY+(y*tileS))}
     | otherwise = p
@@ -252,17 +283,40 @@ translatePiece (x,y) p@(Piece { p_color = col
 
 data World = World { w_playing :: Bool
                    , w_piece :: Piece
-                   , w_bottom :: [Float] }
+                   , w_bottom :: [Float]
+                   , w_placedPieces :: [Piece]
+                   , w_nextPiece :: Piece }
 
 initialWorld = World { w_playing = False
-                     , w_piece = initialPiece
-                     , w_bottom = replicate 10 0 }
+                     , w_piece = pick shapeList
+                     , w_bottom = replicate 10 0
+                     , w_placedPieces = []
+                     , w_nextPiece = pick shapeList }
+
+
+-- RENDER STUFF
 
 render :: World -> Picture
-render (World { w_piece = Piece { p_color = col
+render (World { w_piece = p@(Piece { p_color = col
                                 , p_position = [(t0X,t0Y),(t1X,t1Y),(t2X,t2Y),(t3X,t3Y)]
-                                , p_center = (p_cenX, p_cenY)} })
-    = translate (-stageWidthF / 2) (-stageHeightF / 2) $
+                                , p_center = (p_cenX, p_cenY)} )
+              , w_placedPieces = ps
+              , w_nextPiece = np@(Piece { p_color = n_col
+                                , p_position = n_pos
+                                , p_center = n_cen} ) })
+    = (translate (stageWidthF + 50)  (stageHeightF - 50) $
+            renderPiece np) <>
+       (translate (-stageWidthF / 2) (-stageHeightF / 2) $
+                   (translate (stageWidthF/2) (stageHeightF/2) $  -- tile 0 BLACK FRAME
+                    color black $
+                    rectangleWire stageWidthF stageHeightF) <>
+                   renderPiece p <>
+                   renderPieceList ps)
+
+renderPiece :: Piece -> Picture
+renderPiece Piece { p_color = col
+                                , p_position = [(t0X,t0Y),(t1X,t1Y),(t2X,t2Y),(t3X,t3Y)]
+                                , p_center = (p_cenX, p_cenY)} =
     (translate t0X t0Y $  -- tile 0
      color col $
      polygon tilePath) <>
@@ -288,13 +342,20 @@ render (World { w_piece = Piece { p_color = col
      color black $
      rectangleWire tileS tileS)
 
+renderPieceList :: [Piece] -> Picture
+renderPieceList [] = blank
+renderPieceList [p] = renderPiece p
+renderPieceList ps = renderPiece (head ps) <> renderPieceList (tail ps)
 
 step :: Float -> World -> World
 step _ w@(World { w_playing = False }) = w
 step _ w@(World { w_piece = piece
-                , w_bottom = botLs})
-    | bottomOut piece botLs = error "do piece landing stuff here :)"
-    | otherwise = w { w_piece = translatePiece (0,-1) piece }
+                , w_bottom = botLs
+                , w_placedPieces = placedP })
+    | notOverlap placedP (nextPosStep piece) 
+                            = w { w_piece = translatePiece placedP (0,-1) piece }
+    | otherwise = w { w_piece = pick shapeList
+                    , w_placedPieces = [piece] ++ placedP }
 -- step _ w = w
 
 
@@ -304,21 +365,29 @@ react (EventKey (SpecialKey KeySpace) Down _ _)
   = w { w_playing = True }
 react (EventKey (SpecialKey KeySpace) Down _ _)
       w@(World { w_playing = True
-               , w_piece = piece })
-  = w { w_piece = rotatePiece piece }
+               , w_piece = piece
+               , w_placedPieces = ps })
+  = w { w_piece = rotatePiece ps piece }
 react (EventKey (SpecialKey KeyRight) Down _ _)
       w@(World { w_playing = True
-               , w_piece = piece })
-  = w { w_piece = translatePiece (1,0) piece}
+               , w_piece = piece
+               , w_placedPieces = ps })
+  = w { w_piece = translatePiece ps (1,0) piece}
 react (EventKey (SpecialKey KeyLeft) Down _ _)
       w@(World { w_playing = True
-               , w_piece = piece })
-  = w { w_piece = translatePiece (-1,0) piece}
+               , w_piece = piece
+               , w_placedPieces = ps })
+  = w { w_piece = translatePiece ps (-1,0) piece}
+react (EventKey (SpecialKey KeyDown) Down _ _)
+      w@(World { w_playing = True
+               , w_piece = piece
+               , w_placedPieces = ps })
+  = w { w_piece = translatePiece ps (0,-1) piece}
 react _ w = w
 
 
 main :: IO ()
-main = play (InWindow "Tetris" (stageWidth, stageHeight) (200, 200))
+main = play (InWindow "Tetris" (totalStageWidth, stageHeight) (200, 200))
             white
             2
             initialWorld

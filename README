@@ -9,15 +9,24 @@ Could maybe use grid for placed pieces.
 
 tile = one segement of a piece
 
+pieces list right now just holds all the pieces, this wouldn't work for typical tetris where
+    pieces go away. could modify this later to accommadate.
 
-stuff to do on piece land:
+Stuff to do on piece land:
 update botLS with new bottom structure
 instantiate new piece, make this piece current
 	-random element :)
 add old piece to list of placed pieces
 
+Next TODO:
+display next piece in top left
+up key to place piece instantly
+hold down arrows to move piece steadily
+end game
+    -game ends when instantiated piece is overlap with current pieces
 
-also need to make rotation and translation check for bumping into previously placed pieces, using pieces list
+grab bag instead of totally random
+
 
 
 
