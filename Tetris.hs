@@ -15,6 +15,8 @@ import Data.Maybe
 import Graphics.Gloss.Interface.Pure.Game
 import Graphics.Gloss.Geometry.Line
 import Data.Monoid
+import System.Random
+import System.IO.Unsafe
 
 -- GAME DATA
 
@@ -43,7 +45,17 @@ data Piece = Piece { p_color :: Color
                    , p_position :: [Point]  -- rotation piece is always at start of list
                    , p_center :: Point}
 
-initialPiece = j_Shape
+initialPiece :: Piece
+initialPiece = o_Shape--pick shapeList
+
+pick :: [a] -> a
+pick [] = error "no items to pick"
+pick as = pickHelp as (unsafePerformIO (getStdRandom (randomR (1, length as))))
+
+pickHelp :: [a] -> Int -> a
+pickHelp [] _ = error "picking num out of list range"
+pickHelp as 0 = head (as)
+pickHelp as i = pickHelp (tail as) (i-1)
 
 i_Shape = Piece { p_color = cyan
                      , p_position = [(105,495),(135,495),(165,495),(195,495)]
@@ -73,6 +85,8 @@ z_Shape = Piece { p_color = red
                      , p_position = [(135,465),(135,495),(165,465),(105,495)]
                      , p_center = (135,465)}
 
+shapeList :: [Piece]
+shapeList = [i_Shape,j_Shape,l_Shape,o_Shape,s_Shape,t_Shape,z_Shape]
 
 leftWall :: Path
 leftWall = [(0,0),(0,stageHeightF)]
@@ -106,6 +120,7 @@ pathsOverlap [a1,a2] [b1,b2]
 
 notOverlap :: [Point] -> Bool
 notOverlap pos = notOverlapWalls pos && notOverlapFloor pos
+-- need to also not overlap with placed pieces :)
 
 notOverlapFloor :: [Point] -> Bool
 notOverlapFloor [(t0X,t0Y),(t1X,t1Y),(t2X,t2Y),(t3X,t3Y)]
@@ -142,9 +157,6 @@ rotateNormal p@(Piece { p_color = col
         where
             nPos = [t0, rotateT t1 t0, rotateT t2 t0, rotateT t3 t0]
 
-rotateSpecial :: Piece -> Piece
-rotateSpecial p = p
-
 rotateT :: Point -> Point -> Point
 rotateT (x,y) (cen_x, cen_y) | (x == cen_x && y > cen_y) -- x+, y-
                                     = (x + (abs(cen_x-x)+ abs(cen_y-y)), y - (abs(cen_x-x)+ abs(cen_y-y)))
@@ -163,6 +175,64 @@ rotateT (x,y) (cen_x, cen_y) | (x == cen_x && y > cen_y) -- x+, y-
                              | (x > cen_x && y < cen_y)  -- x++, y
                                     = (x - (abs(cen_x-x)+ abs(cen_y-y)), y)
                              | otherwise = error "weird shape"
+
+rotateSpecial :: Piece -> Piece
+rotateSpecial p@(Piece { p_color = col
+                              , p_position = [(t0X,t0Y),t1,t2,t3]
+                              , p_center = pc@(p_cenX, p_cenY)} )
+    | (abs (p_cenX - t0X) > tileS) || (abs (p_cenY - t0Y) > tileS)
+        = case notOverlap nPos of
+            False -> p
+            True -> Piece { p_color = col
+                                 , p_position = nPos
+                                 , p_center = (p_cenX, p_cenY)}
+    | otherwise = p
+        where
+            nPos = [rotateFarST (t0X,t0Y) pc, rotateCloseST t1 pc 
+                  , rotateCloseST t2 pc, rotateFarST t3 pc]
+
+rotateCloseST :: Point -> Point -> Point
+rotateCloseST (x,y) (cen_x, cen_y) | (x > cen_x) && (y > cen_y)
+                                        = (x, y - tileS)
+                                   | (x > cen_x) && (y < cen_y)
+                                        = (x - tileS, y)
+                                   | (x < cen_x) && (y < cen_y)
+                                        = (x, y + tileS)
+                                   | (x < cen_x) && (y > cen_y)
+                                        = (x + tileS, y)
+                                   | otherwise = error "weird shape"
+
+rotateFarST :: Point -> Point -> Point
+rotateFarST (x,y) (cen_x, cen_y) 
+            | (x > cen_x) && (y > cen_y)
+                 = case abs(cen_x - x) > tileS of
+                    True -> (x - tileS, y - (tileS*2))
+                    False -> (x + tileS, y - (tileS*2))
+            | (x > cen_x) && (y < cen_y)
+                 = case abs(cen_x - x) > tileS of
+                    True -> (x - (tileS*2), y - tileS)
+                    False -> (x - (tileS*2), y + tileS)
+            | (x < cen_x) && (y < cen_y)
+                 = case abs(cen_x - x) > tileS of
+                    True -> (x + tileS, y + (tileS*2))
+                    False -> (x - tileS, y + (tileS*2))
+            | (x < cen_x) && (y > cen_y)
+                 = case abs(cen_x - x) > tileS of
+                    True -> (x + (tileS*2), y + tileS)
+                    False -> (x + (tileS*2), y - tileS)
+            | otherwise = error "weird shape"
+    {-False ->| (x > cen_x) && (y > cen_y)
+                 = (x + tileS, y - (tileS*2))
+            | (x > cen_x) && (y < cen_y)
+                 = (x - (tileS*2), y + tileS)
+            | (x < cen_x) && (y < cen_y)
+                 = (x - tileS, y + (tileS*2))
+            | (x < cen_x) && (y > cen_y)
+                 = (x + (tileS*2), y - tileS)
+            | otherwise = error "weird shape"
+            -}
+
+
 
 translatePiece :: Point -> Piece -> Piece
 translatePiece (x,y) p@(Piece { p_color = col

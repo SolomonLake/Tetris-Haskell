@@ -24,3 +24,11 @@ also need to make rotation and translation check for bumping into previously pla
 initialization:
 ghc Tetris.hs -main-is Tetris
 ./Tetris
+
+
+Sources:
+Hackage
+    -Everything
+
+http://stackoverflow.com/questions/8416365/generate-a-random-integer-in-a-range-in-haskell
+    -unsafe IO for random piece gen
