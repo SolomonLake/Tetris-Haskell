@@ -2,11 +2,6 @@
 Creator: Lake Giffen-Hunter
 Email  : sgiffenh@haverford.edu
 
-Sources:
-tetris.wikia.com -- very helpful!!
-
-http://stackoverflow.com/questions/2173628/haskell-ambiguous-occurrences-how-to-avoid
-    -import qualified
 -}
 
 module Tetris where
@@ -18,170 +13,25 @@ import Data.Monoid
 import System.Random
 import System.IO.Unsafe
 
--- GAME DATA
-
-totalStageWidth, stageWidth, stageHeight :: Int
-stageWidth = 300
-stageHeight = 540
--- TODO make these scalable from tileS, then incorporate this into initial piece pos
-
-totalStageWidth = stageHeight + 50
-
-stageWidthF, stageHeightF :: Float
-stageWidthF = fromIntegral stageWidth
-stageHeightF = fromIntegral stageHeight
---totalStageWidthF = fromIntegral totalStageWidth
-
-tileS :: Float
-tileS = 30
---this means piece segements need to be 10 apart
-
-tilePath = [ (-tileS / 2, tileS / 2)
-             , (-tileS / 2, -tileS / 2)
-             , (tileS / 2, -tileS / 2)
-             , (tileS / 2, tileS / 2) ] 
-
-pieceSpeed :: Float
-pieceSpeed = 1
-
-data Piece = Piece { p_color :: Color
-                   , p_position :: [Point]  -- rotation piece is always at start of list
-                   , p_center :: Point}
-
-initialPiece :: Piece
-initialPiece = pick shapeList
-
-pick :: [a] -> a
-pick [] = error "no items to pick"
-pick as = pickHelp as (getRandNumLess (length as))
-
-getRandNumLess :: Int -> Int
-getRandNumLess i 
-    | randN < i = randN
-    | otherwise = getRandNumLess i
-    where
-        randN = unsafePerformIO (getStdRandom (randomR (0, i)))
-
-pickHelp :: [a] -> Int -> a
-pickHelp [] _ = error "picking num out of list range" --this sometimes happens..random..
-pickHelp as 0 = head (as)
-pickHelp as i = pickHelp (tail as) (i-1)
-
-i_Shape = Piece { p_color = cyan
-                     , p_position = [(105,495),(135,495),(165,495),(195,495)]
-                     , p_center = (150,480)}
-
-j_Shape = Piece { p_color = blue
-                     , p_position = [(135,495),(105,495),(165,465),(165,495)]
-                     , p_center = (135,495)}
-
-l_Shape = Piece { p_color = orange
-                     , p_position = [(135,495),(105,495),(105,465),(165,495)]
-                     , p_center = (135,495)}
-
-o_Shape = Piece { p_color = yellow
-                     , p_position = [(135,465),(135,495),(165,465),(165,495)]
-                     , p_center = (150,480)}
-
-s_Shape = Piece { p_color = green
-                     , p_position = [(135,465),(135,495),(165,495),(105,465)]
-                     , p_center = (135,465)}
-
-t_Shape = Piece { p_color = violet
-                     , p_position = [(135,465),(135,495),(165,465),(105,465)]
-                     , p_center = (135,465)}
-
-z_Shape = Piece { p_color = red
-                     , p_position = [(135,465),(135,495),(165,465),(105,495)]
-                     , p_center = (135,465)}
-
-shapeList :: [Piece]
-shapeList = [i_Shape,j_Shape,l_Shape,o_Shape,s_Shape,t_Shape,z_Shape]
-
-leftWall :: Path
-leftWall = [(0,0),(0,stageHeightF)]
-
-rightWall :: Path
-rightWall = [(stageWidthF,0),(stageWidthF,stageHeightF)]
-
-
-
--- GAME FUNCTIONS
-
-
--- PIECE OVERLAP FUNCS
-
---bottomOut :: Piece -> [Float] -> Bool
---bottomOut p ls = bottomOutRec (nextPosStep p) ls
-
---bottomOutRec :: [Point] -> [Float] -> Bool
---bottomOutRec _ [] = False
---bottomOutRec ps@([(t0X,t0Y),(t1X,t1Y),(t2X,t2Y),(t3X,t3Y)] ) ls
---    | (t0Y < head ls || t1Y < head ls || t2Y < head ls || t3Y < head ls) 
---                = True
---    | otherwise = bottomOutRec ps (tail ls)
-
-nextPosStep :: Piece -> [Point]
-nextPosStep Piece { p_position = [(t0X,t0Y),(t1X,t1Y),(t2X,t2Y),(t3X,t3Y)] }
-    =  [(t0X+(0*tileS),t0Y+(-1*tileS)),(t1X+(0*tileS),t1Y+(-1*tileS))
-       ,(t2X+(0*tileS),t2Y+(-1*tileS)),(t3X+(0*tileS),t3Y+(-1*tileS)) ]
-
-pathsOverlap :: Path -> Path -> Bool
-pathsOverlap [a1,a2] [b1,b2]
-    = case intersectSegSeg a1 a2 b1 b2 of
-        Nothing -> False
-        Just (p) -> True
-
-notOverlap :: [Piece] -> [Point] -> Bool
-notOverlap ps pos = notOverlapWalls pos && notOverlapFloor pos && notOverlapPlacedPs ps pos
-
-notOverlapFloor :: [Point] -> Bool
-notOverlapFloor [(t0X,t0Y),(t1X,t1Y),(t2X,t2Y),(t3X,t3Y)]
-    | (t0Y < 0 || t1Y < 0 || t2Y < 0 || t3Y < 0) 
-                = False
-    | otherwise = True
-notOverlapFloor _ = error "not a piece position"
-
-notOverlapWalls :: [Point] -> Bool
-notOverlapWalls [(t0X,t0Y),(t1X,t1Y),(t2X,t2Y),(t3X,t3Y)]
-    |      (t0X < 0 || t1X < 0 || t2X < 0 || t3X < 0) 
-        || (t0X > stageWidthF || t1X > stageWidthF
-                || t2X > stageWidthF || t3X > stageWidthF)
-                = False
-    | otherwise = True
-notOverlapWalls _ = error "not a piece position"
-
-notOverlapPlacedPs :: [Piece] -> [Point] -> Bool
-notOverlapPlacedPs [] _ = True
-notOverlapPlacedPs ps pos 
-    | notOverlapPiece (head ps) pos = notOverlapPlacedPs (tail ps) pos
-    | otherwise = False
-
-notOverlapPiece :: Piece -> [Point] -> Bool
-notOverlapPiece Piece{ p_position = [pt0,pt1,pt2,pt3] } [t0,t1,t2,t3]
-    | t0 == pt0 || t0 == pt1 || t0 == pt2 || t0 == pt3 ||
-      t1 == pt0 || t1 == pt1 || t1 == pt2 || t1 == pt3 ||
-      t2 == pt0 || t2 == pt1 || t2 == pt2 || t2 == pt3 ||
-      t3 == pt0 || t3 == pt1 || t3 == pt2 || t3 == pt3
-                = False
-    | otherwise = True
-
+import Piece
+import OverlapFuncs
+import GameData
 
 
 -- PIECE ROTATE AND TRANSLATE FUNCS
 
-rotatePiece :: [Piece] -> Piece -> Piece
-rotatePiece ps p@(Piece { p_color = col
+rotatePiece :: [Tile] -> Piece -> Piece
+rotatePiece ts p@(Piece { p_color = col
                    , p_position = [(t0X,t0Y),(t1X,t1Y),(t2X,t2Y),(t3X,t3Y)]
                    , p_center = (p_cenX, p_cenY)} )
-    | (p_cenX == t0X && p_cenY == t0Y) = rotateNormal ps p
-    | otherwise                        = rotateSpecial ps p
+    | (p_cenX == t0X && p_cenY == t0Y) = rotateNormal ts p
+    | otherwise                        = rotateSpecial ts p
 
-rotateNormal :: [Piece] -> Piece -> Piece
-rotateNormal ps p@(Piece { p_color = col
+rotateNormal :: [Tile] -> Piece -> Piece
+rotateNormal ts p@(Piece { p_color = col
                    , p_position = [t0,t1,t2,t3]
                    , p_center = (p_cenX, p_cenY)} )
-    | notOverlap ps nPos = Piece { p_color = col
+    | notOverlap ts nPos = Piece { p_color = col
                                  , p_position = nPos
                                  , p_center = (p_cenX, p_cenY)}
     | otherwise = p
@@ -207,12 +57,12 @@ rotateT (x,y) (cen_x, cen_y) | (x == cen_x && y > cen_y) -- x+, y-
                                     = (x - (abs(cen_x-x)+ abs(cen_y-y)), y)
                              | otherwise = error "weird shape"
 
-rotateSpecial :: [Piece] -> Piece -> Piece
-rotateSpecial ps p@(Piece { p_color = col
+rotateSpecial :: [Tile] -> Piece -> Piece
+rotateSpecial ts p@(Piece { p_color = col
                               , p_position = [(t0X,t0Y),t1,t2,t3]
                               , p_center = pc@(p_cenX, p_cenY)} )
     | (abs (p_cenX - t0X) > tileS) || (abs (p_cenY - t0Y) > tileS)
-        = case notOverlap ps nPos of
+        = case notOverlap ts nPos of
             False -> p
             True -> Piece { p_color = col
                                  , p_position = nPos
@@ -252,66 +102,151 @@ rotateFarST (x,y) (cen_x, cen_y)
                     True -> (x + (tileS*2), y + tileS)
                     False -> (x + (tileS*2), y - tileS)
             | otherwise = error "weird shape"
-    {-False ->| (x > cen_x) && (y > cen_y)
-                 = (x + tileS, y - (tileS*2))
-            | (x > cen_x) && (y < cen_y)
-                 = (x - (tileS*2), y + tileS)
-            | (x < cen_x) && (y < cen_y)
-                 = (x - tileS, y + (tileS*2))
-            | (x < cen_x) && (y > cen_y)
-                 = (x + (tileS*2), y - tileS)
-            | otherwise = error "weird shape"
-            -}
 
 
 
-translatePiece :: [Piece] -> Point -> Piece -> Piece
-translatePiece ps (x,y) p@(Piece { p_color = col
+
+translatePiece :: [Tile] -> Point -> Piece -> Piece
+translatePiece ts (x,y) p@(Piece { p_color = col
                               , p_position = [(t0X,t0Y),(t1X,t1Y),(t2X,t2Y),(t3X,t3Y)]
                               , p_center = (p_cenX, p_cenY)} )
-    | notOverlap ps nPos = Piece { p_color = col
+    | notOverlap ts nPos = Piece { p_color = col
                                 , p_position = nPos
                                 , p_center = (p_cenX+(x*tileS), p_cenY+(y*tileS))}
     | otherwise = p
         where
             nPos = [(t0X+(x*tileS),t0Y+(y*tileS)),(t1X+(x*tileS),t1Y+(y*tileS))
                    ,(t2X+(x*tileS),t2Y+(y*tileS)),(t3X+(x*tileS),t3Y+(y*tileS)) ]
-    
 
 
--- WORLD AND ITS FUNCTIONS
+
+-- GENERAL FUNCTIONS FOR GAME STATE
+
+movePieceToBot :: [Tile] -> Piece -> Piece
+movePieceToBot ts p@(Piece { p_color = col
+                              , p_position = pos@([(t0X,t0Y),(t1X,t1Y),(t2X,t2Y),(t3X,t3Y)])
+                              , p_center = (p_cenX, p_cenY)} )
+    | notOverlap ts (nextPosStep p) --Case where you should move it down one
+          = movePieceToBot ts (p { p_position = nextPosStep p})
+    | otherwise                     -- Case where we have reached the bottom, return p
+          = p
+
+clearCompleteRows :: [Point] -> [Tile] -> [Tile]
+--cycle through each row, until stageHeight
+clearCompleteRows [] ts = ts
+clearCompleteRows ps ts = clearCompleteRows (tail ps) (ccRHelper (getYPoint (head ps)) ts)
+
+
+
+getYPoint :: Point -> Int
+getYPoint (x,y) = round y
+
+ccRHelper :: Int -> [Tile] -> [Tile]
+ccRHelper row ts = if tenOfRow 0 row ts
+                      then deleteRow row ts
+                   else ts
+
+
+-- OLDER, LESS OPTIMIZED CODE:
+-- clearCompleteRows :: [Tile] -> [Tile]
+-- --cycle through each row, until stageHeight
+-- clearCompleteRows [] ts = ccRHelper (quot tileSInt 2) ts
+--
+-- ccRHelper :: Int -> [Tile] -> [Tile]
+-- ccRHelper row ts | row > stageHeight = ts
+--                  | otherwise = if tenOfRow 0 row ts
+--                                   then ccRHelper row (deleteRow row ts)
+--                                else ccRHelper (row + (quot tileSInt 2)) ts
+
+tenOfRow :: Int -> Int -> [Tile] -> Bool
+tenOfRow 10 _ _ = True
+tenOfRow _ _ [] = False
+tenOfRow ct row ts | tileYPos (head ts) == row = tenOfRow (ct+1) row (tail ts)
+                   | otherwise                 = tenOfRow ct row (tail ts)
+
+tileYPos :: Tile -> Int
+tileYPos Tile { t_position = (x,y) } = round y
+
+deleteRow :: Int -> [Tile] -> [Tile]
+deleteRow _ [] = []
+deleteRow row ts | tileYPos (head ts) == row = deleteRow row (tail ts)
+                 | tileYPos (head ts) > row  = [moveTileDown (head ts)] ++ deleteRow row (tail ts)
+                 | otherwise                 = [head ts] ++ deleteRow row (tail ts)
+
+moveTileDown :: Tile -> Tile
+moveTileDown Tile { t_color = col
+                  , t_position = (x,y) }
+                  = Tile { t_color = col
+                         , t_position = (x,y-(tileS))}
+
+
+-- WORLD AND GAME FUNCTIONS
 
 data World = World { w_playing :: Bool
                    , w_piece :: Piece
-                   , w_bottom :: [Float]
-                   , w_placedPieces :: [Piece]
-                   , w_nextPiece :: Piece }
+                   --, w_placedPieces :: [Piece]
+                   , w_tiles :: [Tile]
+                   , w_nextPiece :: Piece
+                   , w_startGame :: Bool
+                   , w_numPiecesP :: Int
+                   , w_prevGameNum :: Int
+                   , w_pieceSpeed :: Float
+                   , w_pieceBag :: [Piece] }
 
 initialWorld = World { w_playing = False
                      , w_piece = pick shapeList
-                     , w_bottom = replicate 10 0
-                     , w_placedPieces = []
-                     , w_nextPiece = pick shapeList }
+                     --, w_placedPieces = []
+                     , w_tiles = []
+                     , w_nextPiece = pick shapeList
+                     , w_startGame = True
+                     , w_numPiecesP = 0
+                     , w_prevGameNum = 0
+                     , w_pieceSpeed = 1
+                     , w_pieceBag = getNextBag [] }
+
 
 
 -- RENDER STUFF
 
 render :: World -> Picture
-render (World { w_piece = p@(Piece { p_color = col
+render (World { w_playing = playing
+              , w_piece = p@(Piece { p_color = col
                                 , p_position = [(t0X,t0Y),(t1X,t1Y),(t2X,t2Y),(t3X,t3Y)]
                                 , p_center = (p_cenX, p_cenY)} )
-              , w_placedPieces = ps
+              --, w_placedPieces = ps
+              , w_tiles = ts
               , w_nextPiece = np@(Piece { p_color = n_col
                                 , p_position = n_pos
-                                , p_center = n_cen} ) })
-    = (translate (stageWidthF + 50)  (stageHeightF - 50) $
+                                , p_center = n_cen} )
+              , w_startGame = sGame
+              , w_numPiecesP = numP
+              , w_prevGameNum = prevGameNum })
+    | playing == True 
+       = (translate ((-1 * stageWidthF) - (stageWidthF/4.1))  (-stageHeightF / 2) $
             renderPiece np) <>
+       (translate (stageWidthF - 100)  (stageHeightF / 2 - 70) $
+            scale 0.4 0.4 $ text $ show numP) <>
        (translate (-stageWidthF / 2) (-stageHeightF / 2) $
                    (translate (stageWidthF/2) (stageHeightF/2) $  -- tile 0 BLACK FRAME
                     color black $
                     rectangleWire stageWidthF stageHeightF) <>
                    renderPiece p <>
-                   renderPieceList ps)
+                   renderTileList ts)
+    | sGame == True = (translate (-stageWidthF / 2) (stageHeightF/2 -50) $
+                          scale 0.2 0.2 $ text $ "Press SPACE to begin") <>
+                      (translate (-stageWidthF / 2) (stageHeightF/2 -150) $
+                          scale 0.2 0.2 $ text $ "Controls:") <>
+                      (translate (-stageWidthF / 2) (stageHeightF/2 -200) $
+                          scale 0.2 0.2 $ text $ "Space: Rotate") <>
+                      (translate (-stageWidthF / 2) (stageHeightF/2 -250) $
+                          scale 0.2 0.2 $ text $ "P: Pause")
+    | otherwise      -- end game
+                    = (translate (-stageWidthF / 2) (stageHeightF/2 -50) $
+                          scale 0.2 0.2 $ text $ "GAME OVER") <>
+                      (translate (-stageWidthF / 2) (stageHeightF/2 -150) $
+                          scale 0.2 0.2 $ text $ "Press SPACE to play again") <>
+                      (translate (-stageWidthF / 2) (stageHeightF/2 -200) $
+                          scale 0.2 0.2 $ text $ "Score: " ++ show prevGameNum)
 
 renderPiece :: Piece -> Picture
 renderPiece Piece { p_color = col
@@ -342,22 +277,69 @@ renderPiece Piece { p_color = col
      color black $
      rectangleWire tileS tileS)
 
-renderPieceList :: [Piece] -> Picture
-renderPieceList [] = blank
-renderPieceList [p] = renderPiece p
-renderPieceList ps = renderPiece (head ps) <> renderPieceList (tail ps)
+
+
+renderTileList :: [Tile] -> Picture
+renderTileList [] = blank
+renderTileList [t] = renderTile t
+renderTileList ts = renderTile (head ts) <> renderTileList (tail ts)
+
+renderTile :: Tile -> Picture
+renderTile Tile { t_color = col
+                , t_position = (tX, tY)} =
+    (translate tX tY $  
+     color col $
+     polygon tilePath) <>
+    (translate tX tY $
+     color black $
+     rectangleWire tileS tileS)
+
+
+-- STEP STUFF
 
 step :: Float -> World -> World
 step _ w@(World { w_playing = False }) = w
-step _ w@(World { w_piece = piece
-                , w_bottom = botLs
-                , w_placedPieces = placedP })
-    | notOverlap placedP (nextPosStep piece) 
-                            = w { w_piece = translatePiece placedP (0,-1) piece }
-    | otherwise = w { w_piece = pick shapeList
-                    , w_placedPieces = [piece] ++ placedP }
+step _ w@(World { w_piece = p@(Piece { p_color = col
+                              , p_position = p_pos@([t0,t1,t2,t3])
+                              , p_center = pc@(p_cenX, p_cenY)} )
+                --, w_placedPieces = placedP
+                , w_tiles = ts
+                , w_nextPiece = np
+                , w_numPiecesP = numP
+                , w_pieceSpeed = pSpeed
+                , w_pieceBag = pBag })
+    | notOverlap ts (nextPosStep p) 
+                            = w { w_piece = translatePiece ts (0,-1) p }
+                -- this is where key down cases need to be
+    | otherwise = case notOverlapPlacedTs ts p_pos of
+      True -> w { w_piece = np
+                    --, w_placedPieces = [p] ++ placedP
+                    , w_tiles = clearCompleteRows 
+                                 [t0,t1,t2,t3]
+                                ([Tile {t_color = col, t_position = t0}
+                                 ,Tile {t_color = col, t_position = t1}
+                                 ,Tile {t_color = col, t_position = t2}
+                                 ,Tile {t_color = col, t_position = t3}]  ++ ts)
+                    , w_nextPiece = head pBag
+                    , w_numPiecesP = numP + 1
+                    , w_pieceSpeed = fromIntegral (quot numP numPiecesPerLevel) + 2
+                    , w_pieceBag = getNextBag pBag }
+            -- here is where you check for complete row
+
+      False -> World { w_playing = False
+                     , w_piece = pick shapeList
+                     --, w_placedPieces = []
+                     , w_tiles = []
+                     , w_nextPiece = pick shapeList
+                     , w_startGame = False
+                     , w_numPiecesP = 0
+                     , w_prevGameNum = numP
+                     , w_pieceSpeed = 2
+                     , w_pieceBag = getNextBag [] }
 -- step _ w = w
 
+
+-- REACT STUFF
 
 react :: Event -> World -> World
 react (EventKey (SpecialKey KeySpace) Down _ _)
@@ -366,64 +348,114 @@ react (EventKey (SpecialKey KeySpace) Down _ _)
 react (EventKey (SpecialKey KeySpace) Down _ _)
       w@(World { w_playing = True
                , w_piece = piece
-               , w_placedPieces = ps })
-  = w { w_piece = rotatePiece ps piece }
+               , w_tiles = ts })
+  = w { w_piece = rotatePiece ts piece }
 react (EventKey (SpecialKey KeyRight) Down _ _)
       w@(World { w_playing = True
                , w_piece = piece
-               , w_placedPieces = ps })
-  = w { w_piece = translatePiece ps (1,0) piece}
+               , w_tiles = ts })
+  = w { w_piece = translatePiece ts (1,0) piece }
 react (EventKey (SpecialKey KeyLeft) Down _ _)
       w@(World { w_playing = True
                , w_piece = piece
-               , w_placedPieces = ps })
-  = w { w_piece = translatePiece ps (-1,0) piece}
+               , w_tiles = ts })
+  = w { w_piece = translatePiece ts (-1,0) piece }
 react (EventKey (SpecialKey KeyDown) Down _ _)
       w@(World { w_playing = True
                , w_piece = piece
-               , w_placedPieces = ps })
-  = w { w_piece = translatePiece ps (0,-1) piece}
+               , w_tiles = ts })
+  = w { w_piece = translatePiece ts (0,-1) piece }
+react (EventKey (Char 'p') Down _ _)
+      w@(World { w_playing = True })
+  = w { w_playing = False }
+react (EventKey (SpecialKey KeyUp) Down _ _)
+      w@(World { w_playing = True
+               , w_piece = piece
+               , w_tiles = ts })
+  = w { w_piece = movePieceToBot ts piece }
 react _ w = w
 
 
+-- MAIN
+
 main :: IO ()
 main = play (InWindow "Tetris" (totalStageWidth, stageHeight) (200, 200))
-            white
+            (greyN 1.1)
             2
             initialWorld
             render
             react
             step
-
-{-
-Pieces:
-T:
- @
-@X@
-
-I:
-@@@@
-rotates around center of 4x4 array
-
-O:
-@@
-@@
-
-S:
- @@
-@X
-
-Z:
-@@
- X@
- 
-J:
-@
-@X@
-
-L:
-  @
-@X@
+              --where gameSpeed = w_pieceSpeed
 
 
+
+
+
+
+
+-- CAN IGNORE: OLD FUNCTIONS AND DATA
+
+{- if keyL == True && keyR == False
+                                then if keyD == True
+                                        then w { w_piece = translatePiece placedP (-1,-2) p }
+                                    else w { w_piece = translatePiece placedP (-1,-1) p }
+                               else if keyL == False && keyR == True
+                                then if keyD == True
+                                        then w { w_piece = translatePiece placedP (1,-2) p }
+                                    else w { w_piece = translatePiece placedP (1,-1) p }
+                               else if keyL == False && keyR == False && keyD == True
+                                    then w { w_piece = translatePiece placedP (0,-2) p }
+                               else w { w_piece = translatePiece placedP (0,-1) p } -}
+
+-- renderPieceList :: [Piece] -> Picture
+-- renderPieceList [] = blank
+-- renderPieceList [p] = renderPiece p
+-- renderPieceList ps = renderPiece (head ps) <> renderPieceList (tail ps)
+
+
+{-restartWorld = World { w_playing = False
+                     , w_piece = pick shapeList
+                     , w_placedPieces = []
+                     , w_nextPiece = pick shapeList
+                     , w_startGame = False
+                     , w_numPiecesP = 0
+                     , w_prevGameNum = w_numPiecesP }
 -}
+
+
+
+    {- Rotate stuff
+    False ->| (x > cen_x) && (y > cen_y)
+                 = (x + tileS, y - (tileS*2))
+            | (x > cen_x) && (y < cen_y)
+                 = (x - (tileS*2), y + tileS)
+            | (x < cen_x) && (y < cen_y)
+                 = (x - tileS, y + (tileS*2))
+            | (x < cen_x) && (y > cen_y)
+                 = (x + (tileS*2), y - tileS)
+            | otherwise = error "weird shape"
+            -}
+
+
+--bottomOut :: Piece -> [Float] -> Bool
+--bottomOut p ls = bottomOutRec (nextPosStep p) ls
+
+--bottomOutRec :: [Point] -> [Float] -> Bool
+--bottomOutRec _ [] = False
+--bottomOutRec ps@([(t0X,t0Y),(t1X,t1Y),(t2X,t2Y),(t3X,t3Y)] ) ls
+--    | (t0Y < head ls || t1Y < head ls || t2Y < head ls || t3Y < head ls) 
+--                = True
+--    | otherwise = bottomOutRec ps (tail ls)
+
+-- pathsOverlap :: Path -> Path -> Bool
+-- pathsOverlap [a1,a2] [b1,b2]
+--     = case intersectSegSeg a1 a2 b1 b2 of
+--         Nothing -> False
+--         Just (p) -> True
+
+-- notOverlapPlacedPs :: [Piece] -> [Point] -> Bool
+-- notOverlapPlacedPs [] _ = True
+-- notOverlapPlacedPs ps pos 
+--     | notOverlapPiece (head ps) pos = notOverlapPlacedPs (tail ps) pos
+--     | otherwise = False

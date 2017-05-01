@@ -1,43 +1,90 @@
 README - Tetris
 
-Simple Tetris game
-
-Will represent the current piece as a list of game.points, will also represent the top line of pieces this way.
-When a current piece collides with the bottom, it will enter a list of pieces that make up the dropped pieces and will
-stop being current piece.
-Could maybe use grid for placed pieces.
-
-tile = one segement of a piece
-
-pieces list right now just holds all the pieces, this wouldn't work for typical tetris where
-    pieces go away. could modify this later to accommadate.
-
-Stuff to do on piece land:
-update botLS with new bottom structure
-instantiate new piece, make this piece current
-	-random element :)
-add old piece to list of placed pieces
-
-Next TODO:
-display next piece in top left
-up key to place piece instantly
-hold down arrows to move piece steadily
-end game
-    -game ends when instantiated piece is overlap with current pieces
-
-grab bag instead of totally random
-
-
-
-
-initialization:
+Initialization: (run first line to incorporate game edits, second to play)
 ghc Tetris.hs -main-is Tetris
 ./Tetris
+
+Controls:
+Space: Rotate/Start Game
+Left Arrow: Move piece left
+Right Arrow: Move piece right
+Down Arrow: Move piece down
+Up Arrow: Teleport piece to bottom
+P: Pause game
+
+File Organization:
+
+Tetris.hs - main program
+Piece.hs  - piece definition
+OverlapFuncs.hs - overlap specific functions, turned out to be useful in many circumstances
+GameData.hs - static values for the game world
+
+
+Game Flow:
+At start, piece is instantiated at top, becomes current piece.
+It moves slowly down the screen
+When it moves down into another piece or the floor with the step function, it becomes placed.
+(tile = one segement of a piece)
+
+At which point these other steps happen:
+-instantiate new piece as "next piece"
+	-does this via shuffle bag, in piece.hs
+-make previous "next piece" current piece
+-enters its individual tiles into a list of placed tiles
+-point count goes up by one
+-deleteing full rows:
+	-make every piece into a collection of tiles upon landing
+		-tile has its own data structure
+	-cycle through tiles when checking for overlap
+	-upon landing look for complete row
+	-delete those tiles, cycle through every tile and everyone that has a heigher y value moves down one
+	-checks the rows that the placed tile went into, as these are the only rows it could effect
+
+This continues until the piece we will make current will be overlapping with tiles already down
+-triggers game end
+	-refresh world
+	-display total score
+When game is playing, events are looking for space to rotate, arrow keys to translate
+-these only happen if the resulting position is not overlaping with any placed tiles, the floor, or the walls
+-game is also looking for up arrow, which moves the piece directly to the bottom, where step lays it to rest
+-p pauses game
+
+
+
+Future Tasks:
+up simulation speed after total number of placed pieces is high
+shuffle seems to be more likely to put two same pieces in a row, 
+    -but it could just be confirmation bias on my end
+
 
 
 Sources:
 Hackage
     -Everything
 
+tetris.wikia.com 
+    -how to play tetris
+
+http://stackoverflow.com/questions/2173628/haskell-ambiguous-occurrences-how-to-avoid
+    -import qualified
+
 http://stackoverflow.com/questions/8416365/generate-a-random-integer-in-a-range-in-haskell
     -unsafe IO for random piece gen
+
+https://groups.google.com/forum/#!topic/haskell-gloss/-zfCvLxCyHk
+    -gloss text scale
+
+https://en.wikibooks.org/wiki/Haskell/Control_structures
+	-if then else control structure reminders
+
+http://stackoverflow.com/questions/42975088/how-to-convert-from-float-to-int-in-haskell
+	-float to int
+
+http://stackoverflow.com/questions/4359043/divide-int-to-int-and-return-int
+	-quot
+
+http://stackoverflow.com/questions/2784271/haskell-converting-int-to-string
+	-int to string
+
+https://wiki.haskell.org/Random_shuffle
+	-shuffle list
