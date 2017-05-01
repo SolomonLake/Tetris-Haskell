@@ -100,6 +100,10 @@ getNextBag [] = unsafePerformIO (shuffle shapeShuffleBag)
 getNextBag [p] = unsafePerformIO (shuffle shapeShuffleBag)
 getNextBag ps = tail ps
 
+getNextPiece :: [Piece] -> Piece
+getNextPiece [] = head (unsafePerformIO (shuffle shapeShuffleBag))
+getNextPiece ps = head (ps)
+
 
 -- NOW SWITCHED TO SHUFFLE BAG, NO LONGER USING PICK, 
 -- pick :: [a] -> a

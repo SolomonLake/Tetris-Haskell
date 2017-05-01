@@ -194,10 +194,10 @@ data World = World { w_playing :: Bool
                    , w_pieceBag :: [Piece] }
 
 initialWorld = World { w_playing = False
-                     , w_piece = pick shapeList
+                     , w_piece = getNextPiece []
                      --, w_placedPieces = []
                      , w_tiles = []
-                     , w_nextPiece = pick shapeList
+                     , w_nextPiece = getNextPiece []
                      , w_startGame = True
                      , w_numPiecesP = 0
                      , w_prevGameNum = 0
@@ -327,10 +327,10 @@ step _ w@(World { w_piece = p@(Piece { p_color = col
             -- here is where you check for complete row
 
       False -> World { w_playing = False
-                     , w_piece = pick shapeList
+                     , w_piece = getNextPiece []
                      --, w_placedPieces = []
                      , w_tiles = []
-                     , w_nextPiece = pick shapeList
+                     , w_nextPiece = getNextPiece []
                      , w_startGame = False
                      , w_numPiecesP = 0
                      , w_prevGameNum = numP
