@@ -21,13 +21,16 @@ tileS :: Float
 tileS = 30
 --this is how far piece segements need to be apart
 
+tileShow :: Float
+tileShow = 2.45
+
 tileSInt :: Int
 tileSInt = round tileS
 
-tilePath = [ (-tileS / 2, tileS / 2)
-             , (-tileS / 2, -tileS / 2)
-             , (tileS / 2, -tileS / 2)
-             , (tileS / 2, tileS / 2) ] 
+tilePath = [ (-tileS / 2 +tileShow, tileS / 2 -tileShow)
+             , (-tileS / 2 +tileShow, -tileS / 2 +tileShow)
+             , (tileS / 2 -tileShow, -tileS / 2 +tileShow)
+             , (tileS / 2 -tileShow, tileS / 2 -tileShow) ] 
 
 
 
@@ -39,27 +42,33 @@ data Piece = Piece { p_color :: Color
                    , p_center :: Point}
 
 
-i_Shape = Piece { p_color = (dim cyan)
+i_Shape = Piece { p_color = (cyan)
                      , p_position = [(105,495),(135,495),(165,495),(195,495)]
                      , p_center = (150,480)}
 
-j_Shape = Piece { p_color = (light blue)
+j_Shape = Piece { p_color = (makeColorI 30 144 255 255)
                      , p_position = [(135,495),(105,495),(165,465),(165,495)]
                      , p_center = (135,495)}
+ 
 
-l_Shape = Piece { p_color = (dim orange)
+
+
+
+
+
+l_Shape = Piece { p_color = (makeColorI 255 140 0 255)
                      , p_position = [(135,495),(105,495),(105,465),(165,495)]
                      , p_center = (135,495)}
 
-o_Shape = Piece { p_color = (dim yellow)
+o_Shape = Piece { p_color = (yellow)
                      , p_position = [(135,465),(135,495),(165,465),(165,495)]
                      , p_center = (150,480)}
 
-s_Shape = Piece { p_color = (dim green)
+s_Shape = Piece { p_color = (green)
                      , p_position = [(135,465),(135,495),(165,495),(105,465)]
                      , p_center = (135,465)}
 
-t_Shape = Piece { p_color = violet
+t_Shape = Piece { p_color = magenta
                      , p_position = [(135,465),(135,495),(165,465),(105,465)]
                      , p_center = (135,465)}
 

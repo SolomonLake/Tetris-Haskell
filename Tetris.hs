@@ -208,6 +208,9 @@ initialWorld = World { w_playing = False
 
 -- RENDER STUFF
 
+textColor :: Color 
+textColor = greyN 0.8
+
 render :: World -> Picture
 render (World { w_playing = playing
               , w_piece = p@(Piece { p_color = col
@@ -225,33 +228,33 @@ render (World { w_playing = playing
        = (translate ((-1 * stageWidthF) - (stageWidthF/4.1))  (-stageHeightF / 2) $
             renderPiece np) <>
        (translate (stageWidthF - 100)  (stageHeightF / 2 - 70) $
-            scale 0.4 0.4 $ text $ show numP) <>
+            scale 0.4 0.4 $ color textColor $ text $ show numP) <>
        (translate (-stageWidthF / 2) (-stageHeightF / 2) $
-                   (translate (stageWidthF/2) (stageHeightF/2) $  -- tile 0 BLACK FRAME
-                    color black $
+                   (translate (stageWidthF/2) (stageHeightF/2) $  -- FRAME
+                    color textColor $
                     rectangleWire stageWidthF stageHeightF) <>
                    renderPiece p <>
                    renderTileList ts)
     | sGame == True = (translate (-stageWidthF / 2) (stageHeightF/2 -50) $
-                          scale 0.2 0.2 $ text $ "Press SPACE to begin") <>
+                          scale 0.2 0.2 $ color textColor $ text $ "Press SPACE to begin") <>
                       (translate (-stageWidthF / 2) (stageHeightF/2 -150) $
-                          scale 0.2 0.2 $ text $ "Controls:") <>
+                          scale 0.2 0.2 $ color textColor $ text $ "Controls:") <>
                       (translate (-stageWidthF / 2) (stageHeightF/2 -200) $
-                          scale 0.2 0.2 $ text $ "Space: Rotate") <>
+                          scale 0.2 0.2 $ color textColor $ text $ "Space: Rotate") <>
                       (translate (-stageWidthF / 2) (stageHeightF/2 -250) $
-                          scale 0.2 0.2 $ text $ "P: Pause")
+                          scale 0.2 0.2 $ color textColor $ text $ "P: Pause")
     | otherwise      -- end game
                     = (translate (-stageWidthF / 2) (stageHeightF/2 -50) $
-                          scale 0.2 0.2 $ text $ "GAME OVER") <>
+                          scale 0.2 0.2 $ color textColor $ text $ "GAME OVER") <>
                       (translate (-stageWidthF / 2) (stageHeightF/2 -150) $
-                          scale 0.2 0.2 $ text $ "Press SPACE to play again") <>
+                          scale 0.2 0.2 $ color textColor $ text $ "Press SPACE to play again") <>
                       (translate (-stageWidthF / 2) (stageHeightF/2 -200) $
-                          scale 0.2 0.2 $ text $ "Score: " ++ show prevGameNum)
+                          scale 0.2 0.2 $ color textColor $ text $ "Score: " ++ show prevGameNum)
 
 renderPiece :: Piece -> Picture
 renderPiece Piece { p_color = col
-                                , p_position = [(t0X,t0Y),(t1X,t1Y),(t2X,t2Y),(t3X,t3Y)]
-                                , p_center = (p_cenX, p_cenY)} =
+                  , p_position = [(t0X,t0Y),(t1X,t1Y),(t2X,t2Y),(t3X,t3Y)]
+                  , p_center = (p_cenX, p_cenY)} =
     (translate t0X t0Y $  -- tile 0
      color col $
      polygon tilePath) <>
@@ -263,7 +266,9 @@ renderPiece Piece { p_color = col
      polygon tilePath) <>
     (translate t3X t3Y $  -- tile 3
      color col $
-     polygon tilePath) <>
+     polygon tilePath)
+{-
+     <>
     (translate t0X t0Y $  -- tile 0 BLACK FRAME
      color black $
      rectangleWire tileS tileS) <>
@@ -276,6 +281,7 @@ renderPiece Piece { p_color = col
     (translate t3X t3Y $  -- tile 3
      color black $
      rectangleWire tileS tileS)
+-}
 
 
 
@@ -289,10 +295,13 @@ renderTile Tile { t_color = col
                 , t_position = (tX, tY)} =
     (translate tX tY $  
      color col $
-     polygon tilePath) <>
+     polygon tilePath) 
+{-
+    <>
     (translate tX tY $
      color black $
-     rectangleWire tileS tileS)
+     rectangleWire tileS tileS) 
+-}
 
 
 -- STEP STUFF
@@ -380,7 +389,7 @@ react _ w = w
 
 main :: IO ()
 main = play (InWindow "Tetris" (totalStageWidth, stageHeight) (200, 200))
-            (greyN 1.1)
+            (greyN 0.05)
             2
             initialWorld
             render
